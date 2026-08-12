@@ -130,56 +130,36 @@ Functions contained in the [`/functions` directory](https://developers.cloudflar
 
 ## Runtime APIs
 
-The [`env`](https://developers.cloudflare.com/workers/runtime-apis/fetch-event#parameters) object contains your project's [bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/), which consist of KV/DO namespaces, etc. It is passed to SvelteKit via the `platform` property, along with [`ctx`](https://developers.cloudflare.com/workers/runtime-apis/context/), [`caches`](https://developers.cloudflare.com/workers/runtime-apis/cache/), and [`cf`](https://developers.cloudflare.com/workers/runtime-apis/request/#incomingrequestcfproperties), meaning that you can access it in hooks and endpoints:
+The [`env`](https://developers.cloudflare.com/workers/runtime-apis/fetch-event#parameters) object contains your project's [bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/), which consist of KV/DO namespaces, etc. It is available on the [`cloudflare:workers`](https://developers.cloudflare.com/workers/runtime-apis/bindings/#importing-env-as-a-global) module.
 
 ```js
 // @filename: ambient.d.ts
 import { DurableObjectNamespace } from '@cloudflare/workers-types';
 
-declare global {
-	namespace App {
-		interface Platform {
-			env: {
-				YOUR_DURABLE_OBJECT_NAMESPACE: DurableObjectNamespace;
-			};
-		}
-	}
+declare module 'cloudflare:workers' {
+	export const env: {
+		YOUR_DURABLE_OBJECT_NAMESPACE: DurableObjectNamespace;
+	};
 }
 // @filename: +server.js
 // ---cut---
 // @errors: 2355 2322
 /// file: +server.js
+import { env } from 'cloudflare:workers';
+
 /** @type {import('./$types').RequestHandler} */
-export async function POST({ request, platform }) {
-	const x = platform?.env.YOUR_DURABLE_OBJECT_NAMESPACE.idFromName('x');
+export async function POST() {
+	const x = env.YOUR_DURABLE_OBJECT_NAMESPACE.idFromName('x');
 }
 ```
 
 > [!NOTE] SvelteKit's built-in [`$app/env/*` modules](environment-variables) should be preferred for environment variables.
 
-To make these types available to your app, install [`@cloudflare/workers-types`](https://www.npmjs.com/package/@cloudflare/workers-types) and reference them in your `src/app.d.ts`:
-
-```ts
-/// file: src/app.d.ts
-+++import { KVNamespace, DurableObjectNamespace } from '@cloudflare/workers-types';+++
-
-declare global {
-	namespace App {
-		interface Platform {
-+++			env: {
-				YOUR_KV_NAMESPACE: KVNamespace;
-				YOUR_DURABLE_OBJECT_NAMESPACE: DurableObjectNamespace;
-			};+++
-		}
-	}
-}
-
-export {};
-```
+To make these types available to your app, install [`wrangler`](https://www.npmjs.com/package/wrangler) and run [`wrangler types`](https://developers.cloudflare.com/workers/languages/typescript/).
 
 ### Testing locally
 
-Cloudflare specific values in the `platform` property are emulated during dev and preview modes. Local [bindings](https://developers.cloudflare.com/workers/wrangler/configuration/#bindings) are created based on your [Wrangler configuration file](https://developers.cloudflare.com/workers/wrangler/) and are used to populate `platform.env` during development and preview. Use the adapter config [`platformProxy` option](#Options-platformProxy) to change your preferences for the bindings.
+Cloudflare specific values are emulated during dev and preview modes. Local [bindings](https://developers.cloudflare.com/workers/wrangler/configuration/#bindings) are created based on your [wrangler configuration file](https://developers.cloudflare.com/workers/wrangler/) and are used to populate `env` during development and preview. Use the adapter config [`platformProxy` option](#Options-platformProxy) to change your preferences for the bindings.
 
 For testing the build, you should use [Wrangler](https://developers.cloudflare.com/workers/wrangler/) version 4. Once you have built your site, run `wrangler dev .svelte-kit/cloudflare/_worker.js` if you're testing for Cloudflare Workers or `wrangler pages dev .svelte-kit/cloudflare` for Cloudflare Pages.
 
